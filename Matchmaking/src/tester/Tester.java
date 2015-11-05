@@ -8,7 +8,7 @@ public class Tester {
 	
 	public static void main(String[] args) {
 		// Add own pubnub keys.
-		Matchmaker match = new Matchmaker("", "");
+		Matchmaker match = new Matchmaker("my pubnub publish key", "my pubnub subscribe key");
 		match.setName("Player " + (int)Math.floor(5 + Math.random() * 4));
 		match.setToken(6);
 		
@@ -30,7 +30,7 @@ public class Tester {
 		System.out.println("Searching for a match: " + match.isSearching() + ", in match: " + match.inMatch());
 		System.out.println("No longer searching for a match");
 		if (match.inMatch()) {
-			match.send(new Message("talk").put("value", "Hello there from " + match.getName()));
+			match.send(new Message("talk", "Hello there from " + match.getName()));
 		}
 		match.stop();
 		match.sleep(2000);

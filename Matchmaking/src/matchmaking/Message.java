@@ -10,6 +10,11 @@ public class Message extends JSONObject {
 		this.put("method", method);
 	}
 	
+	public Message(String method, Object value) {
+		this(method);
+		this.put("value", value);
+	}
+	
 	public JSONObject put(String key, Object value) {
 		try {
 			super.put(key, value);

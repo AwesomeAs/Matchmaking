@@ -23,6 +23,11 @@ public class Matchmaker {
 	private boolean searching = false;
 	private JSONObject stack = new JSONObject();
 	
+	/**
+	 * Set up our class and create a connection to our main channel, provided a publish and subscribe key obtained from https://www.pubnub.com/
+	 * @param publish key
+	 * @param subscribe key
+	 */
 	public Matchmaker(String publish, String subscribe) {
 		pubnub = new Pubnub(publish, subscribe);
 		uuid = pubnub.getUUID();
@@ -284,7 +289,7 @@ public class Matchmaker {
 							}
 						}
 						match = null;
-						if (tmatch.length() == 0) { // empty, retry
+						if (tmatch.length() < size) { // empty, retry
 							sleep(1000);
 							search(size);
 						} else {
