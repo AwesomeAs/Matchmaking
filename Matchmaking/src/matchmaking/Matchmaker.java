@@ -22,6 +22,7 @@ public class Matchmaker {
 	private JSONArray match = null;
 	private boolean searching = false;
 	private JSONObject stack = new JSONObject();
+	private int partySize = 0;
 	
 	/**
 	 * Set up our class and create a connection to our main channel, provided a publish and subscribe key obtained from https://www.pubnub.com/
@@ -74,6 +75,20 @@ public class Matchmaker {
 								match = msg.getJSONArray("match");
 								searching = false;
 								setToken(token);
+								setupConnect();
+							} else if (msg.getString("method") == "disconnect" && msg.getBoolean("perm")) {
+								if (match != null) {
+									for (int i = 0; i < match.length(); i++) {
+										if (match.getJSONObject(i).getString("uuid") == msg.getString("value")) {
+											match.remove(i);
+											pubnub.unsubscribePresence(msg.getString("value"));
+											if (stack.has("disconnect")) {
+												Callback callback = (Callback)stack.get("disconnect");
+												callback.successCallback(msg.getString("value"), message);
+											}
+										}
+									}
+								}
 							}
 						} else {
 							if (msg.has("method") && stack.has(msg.getString("method"))) {
@@ -95,6 +110,46 @@ public class Matchmaker {
 			e.printStackTrace();
 		}
 		
+	}
+	
+	/**
+	 * Internally used to begin listen to other channels' presence for leave events.
+	 */
+	private void setupConnect() {
+		if (match != null) {
+			for (int i = 0; i < match.length(); i++) {
+				try {
+					pubnub.presence(match.getJSONObject(i).getString("uuid"), new Callback() {
+						
+						@Override
+					    public void connectCallback(String channel, Object message) {
+							try {
+								if (stack.has("connect")) {
+									Callback callback = (Callback)stack.get("connect");
+									callback.successCallback(channel, new Message("connect", channel).put("internal", true).put("perm", false));
+								}
+							} catch (JSONException e) {}
+							partySize++;
+					    }
+					 
+					    @Override
+					    public void disconnectCallback(String channel, Object message) {
+					    	try {
+								if (stack.has("disconnect")) {
+									Callback callback = (Callback)stack.get("disconnect");
+									callback.successCallback(channel, new Message("disconnect", channel).put("internal", true).put("perm", false));
+								}
+							} catch (JSONException e) {}
+					    	partySize--;
+					    }
+						
+					});
+				} catch (Exception e) {}
+			}
+			partySize = match.length();
+		} else {
+			partySize = 0;
+		}
 	}
 	
 	/**
@@ -141,6 +196,14 @@ public class Matchmaker {
 	 */
 	public int getTolerance() {
 		return tolerance;
+	}
+	
+	/**
+	 * Gets the amount of players in your match, excluding yourself.
+	 * @return size of match
+	 */
+	public int getSize() {
+		return partySize;
 	}
 	
 	/**
@@ -262,13 +325,14 @@ public class Matchmaker {
 	}
 	
 	/**
-	 * Begin searching for one or more other players. Use stop() to stop searching
+	 * Begin searching for one or more other players. Use leave() to stop searching
 	 * @param match size
 	 */
 	public void search(int size) {
 		// set state to 'searching' for player
 		searching = true;
 		setToken(token);
+		
 		pubnub.hereNow(defaultChannel, true, true, new Callback() {
 			
 			@Override
@@ -289,7 +353,7 @@ public class Matchmaker {
 							}
 						}
 						match = null;
-						if (tmatch.length() < size) { // empty, retry
+						if (tmatch.length() < size) { // not enough people, retry
 							sleep(1000);
 							search(size);
 						} else {
@@ -305,6 +369,7 @@ public class Matchmaker {
 									internalSend(match.getJSONObject(i).getString("uuid"), ping);
 								} catch (JSONException e) {}
 							}
+							setupConnect();
 						}
 					} catch (JSONException e) {}
 				} else {
@@ -323,9 +388,17 @@ public class Matchmaker {
 	/**
 	 * Stops searching for a match
 	 */
-	public void stop() {
+	public void leave() {
 		if (searching) {
 			searching = false;
+			if (match != null) {
+				for (int i = 0; i < match.length(); i++) {
+					try {
+						internalSend(match.getJSONObject(i).getString("uuid"), new Message("disconnect", uuid).put("internal", true).put("perm", true));
+						pubnub.unsubscribePresence(match.getJSONObject(i).getString("uuid"));
+					} catch (JSONException e) {}
+				}
+			}
 			match = null;
 			setToken(token);
 		}

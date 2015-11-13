@@ -8,7 +8,7 @@ public class Tester {
 	
 	public static void main(String[] args) {
 		// Add own pubnub keys.
-		Matchmaker match = new Matchmaker("my pubnub publish key", "my pubnub subscribe key");
+		Matchmaker match = new Matchmaker("", "");
 		match.setName("Player " + (int)Math.floor(5 + Math.random() * 4));
 		match.setToken(6);
 		
@@ -17,6 +17,24 @@ public class Tester {
 			@Override
 			public void successCallback(String channel, Object message) {
 				System.out.println("Talk: " + channel + ", " + message);
+			}
+			
+		});
+		
+		match.setCallback("connect", new Callback() {
+			
+			@Override
+			public void successCallback(String channel, Object message) {
+				System.out.println("Connect: " + channel + ", " + message);
+			}
+			
+		});
+		
+		match.setCallback("disconnect", new Callback() {
+			
+			@Override
+			public void successCallback(String channel, Object message) {
+				System.out.println("Disconnect: " + channel + ", " + message);
 			}
 			
 		});
@@ -30,9 +48,9 @@ public class Tester {
 		System.out.println("Searching for a match: " + match.isSearching() + ", in match: " + match.inMatch());
 		System.out.println("No longer searching for a match");
 		if (match.inMatch()) {
-			match.send(new Message("talk", "Hello there from " + match.getName()));
+			match.send(new Message("talk").put("value", "Hello there from " + match.getName()));
 		}
-		match.stop();
+		match.leave();
 		match.sleep(2000);
 		match.close();
 		
